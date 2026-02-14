@@ -1,0 +1,204 @@
+{
+  "stores": [
+    {
+      "id": "walmart_sf_001",
+      "name": "Walmart Supercenter",
+      "chain": "Walmart",
+      "address": "555 9th St, San Francisco, CA 94103",
+      "latitude": 37.7738,
+      "longitude": -122.4083
+    },
+    {
+      "id": "target_sf_001",
+      "name": "Target",
+      "chain": "Target",
+      "address": "789 Mission St, San Francisco, CA 94103",
+      "latitude": 37.7844,
+      "longitude": -122.4051
+    },
+    {
+      "id": "safeway_sf_001",
+      "name": "Safeway",
+      "chain": "Safeway",
+      "address": "1335 Webster St, San Francisco, CA 94115",
+      "latitude": 37.7831,
+      "longitude": -122.4310
+    },
+    {
+      "id": "cvs_sf_001",
+      "name": "CVS Pharmacy",
+      "chain": "CVS",
+      "address": "1524 Polk St, San Francisco, CA 94109",
+      "latitude": 37.7904,
+      "longitude": -122.4213
+    },
+    {
+      "id": "walgreens_sf_001",
+      "name": "Walgreens",
+      "chain": "Walgreens",
+      "address": "498 Castro St, San Francisco, CA 94114",
+      "latitude": 37.7617,
+      "longitude": -122.4349
+    },
+    {
+      "id": "walmart_la_001",
+      "name": "Walmart Supercenter",
+      "chain": "Walmart",
+      "address": "8701 S Vermont Ave, Los Angeles, CA 90044",
+      "latitude": 33.9577,
+      "longitude": -118.2914
+    },
+    {
+      "id": "target_la_001",
+      "name": "Target",
+      "chain": "Target",
+      "address": "7100 Santa Monica Blvd, Los Angeles, CA 90046",
+      "latitude": 34.0904,
+      "longitude": -118.3445
+    },
+    {
+      "id": "ralphs_la_001",
+      "name": "Ralphs",
+      "chain": "Ralphs",
+      "address": "645 W 9th St, Los Angeles, CA 90015",
+      "latitude": 34.0406,
+      "longitude": -118.2598
+    },
+    {
+      "id": "cvs_la_001",
+      "name": "CVS Pharmacy",
+      "chain": "CVS",
+      "address": "6380 Sunset Blvd, Los Angeles, CA 90028",
+      "latitude": 34.0979,
+      "longitude": -118.3289
+    },
+    {
+      "id": "walmart_ny_001",
+      "name": "Walmart",
+      "chain": "Walmart",
+      "address": "517 E 117th St, New York, NY 10035",
+      "latitude": 40.7979,
+      "longitude": -73.9359
+    },
+    {
+      "id": "target_ny_001",
+      "name": "Target",
+      "chain": "Target",
+      "address": "615 10th Ave, New York, NY 10036",
+      "latitude": 40.7620,
+      "longitude": -73.9964
+    },
+    {
+      "id": "cvs_ny_001",
+      "name": "CVS Pharmacy",
+      "chain": "CVS",
+      "address": "630 Lexington Ave, New York, NY 10022",
+      "latitude": 40.7585,
+      "longitude": -73.9709
+    },
+    {
+      "id": "walgreens_ny_001",
+      "name": "Walgreens",
+      "chain": "Walgreens",
+      "address": "1440 Broadway, New York, NY 10018",
+      "latitude": 40.7555,
+      "longitude": -73.9870
+    },
+    {
+      "id": "walmart_chi_001",
+      "name": "Walmart Supercenter",
+      "chain": "Walmart",
+      "address": "7050 S Ashland Ave, Chicago, IL 60636",
+      "latitude": 41.7663,
+      "longitude": -87.6648
+    },
+    {
+      "id": "target_chi_001",
+      "name": "Target",
+      "chain": "Target",
+      "address": "1154 S Clark St, Chicago, IL 60605",
+      "latitude": 41.8661,
+      "longitude": -87.6308
+    },
+    {
+      "id": "jewel_chi_001",
+      "name": "Jewel-Osco",
+      "chain": "Jewel-Osco",
+      "address": "1340 S Canal St, Chicago, IL 60607",
+      "latitude": 41.8624,
+      "longitude": -87.6397
+    },
+    {
+      "id": "cvs_chi_001",
+      "name": "CVS Pharmacy",
+      "chain": "CVS",
+      "address": "1714 N Sheffield Ave, Chicago, IL 60614",
+      "latitude": 41.9133,
+      "longitude": -87.6536
+    },
+    {
+      "id": "walmart_austin_001",
+      "name": "Walmart Supercenter",
+      "chain": "Walmart",
+      "address": "6225 N Lamar Blvd, Austin, TX 78752",
+      "latitude": 30.3376,
+      "longitude": -97.7424
+    },
+    {
+      "id": "target_austin_001",
+      "name": "Target",
+      "chain": "Target",
+      "address": "1000 E 41st St, Austin, TX 78751",
+      "latitude": 30.2991,
+      "longitude": -97.7242
+    },
+    {
+      "id": "heb_austin_001",
+      "name": "H-E-B",
+      "chain": "H-E-B",
+      "address": "2508 W Ben White Blvd, Austin, TX 78704",
+      "latitude": 30.2296,
+      "longitude": -97.7993
+    },
+    {
+      "id": "cvs_austin_001",
+      "name": "CVS Pharmacy",
+      "chain": "CVS",
+      "address": "600 Congress Ave, Austin, TX 78701",
+      "latitude": 30.2684,
+      "longitude": -97.7431
+    },
+    {
+      "id": "walmart_seattle_001",
+      "name": "Walmart",
+      "chain": "Walmart",
+      "address": "10116 Holman Rd NW, Seattle, WA 98177",
+      "latitude": 47.7043,
+      "longitude": -122.3671
+    },
+    {
+      "id": "target_seattle_001",
+      "name": "Target",
+      "chain": "Target",
+      "address": "302 NE Northgate Way, Seattle, WA 98125",
+      "latitude": 47.7071,
+      "longitude": -122.3263
+    },
+    {
+      "id": "safeway_seattle_001",
+      "name": "Safeway",
+      "chain": "Safeway",
+      "address": "516 Broadway E, Seattle, WA 98102",
+      "latitude": 47.6236,
+      "longitude": -122.3207
+    },
+    {
+      "id": "cvs_seattle_001",
+      "name": "CVS Pharmacy",
+      "chain": "CVS",
+      "address": "1525 4th Ave, Seattle, WA 98101",
+      "latitude": 47.6103,
+      "longitude": -122.3361
+    }
+  ]
+}

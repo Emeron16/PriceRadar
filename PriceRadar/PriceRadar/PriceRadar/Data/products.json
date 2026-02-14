@@ -1,0 +1,124 @@
+{
+  "products": [
+    {
+      "barcode": "012000161551",
+      "name": "Coca-Cola Classic 12 Pack",
+      "brand": "Coca-Cola",
+      "category": "Beverages"
+    },
+    {
+      "barcode": "012000161520",
+      "name": "Coca-Cola Zero Sugar 12 Pack",
+      "brand": "Coca-Cola",
+      "category": "Beverages"
+    },
+    {
+      "barcode": "012000638701",
+      "name": "Pepsi Cola 12 Pack",
+      "brand": "Pepsi",
+      "category": "Beverages"
+    },
+    {
+      "barcode": "028400064316",
+      "name": "Lay's Classic Potato Chips",
+      "brand": "Lay's",
+      "category": "Snacks"
+    },
+    {
+      "barcode": "028400643917",
+      "name": "Lay's BBQ Potato Chips",
+      "brand": "Lay's",
+      "category": "Snacks"
+    },
+    {
+      "barcode": "028400047685",
+      "name": "Doritos Nacho Cheese",
+      "brand": "Doritos",
+      "category": "Snacks"
+    },
+    {
+      "barcode": "044000032210",
+      "name": "Oreo Original Cookies",
+      "brand": "Oreo",
+      "category": "Snacks"
+    },
+    {
+      "barcode": "037000850076",
+      "name": "Tide Original Scent Liquid Laundry Detergent",
+      "brand": "Tide",
+      "category": "Household"
+    },
+    {
+      "barcode": "037000827177",
+      "name": "Tide PODS Laundry Detergent",
+      "brand": "Tide",
+      "category": "Household"
+    },
+    {
+      "barcode": "037000740049",
+      "name": "Bounty Paper Towels",
+      "brand": "Bounty",
+      "category": "Household"
+    },
+    {
+      "barcode": "037000797951",
+      "name": "Charmin Ultra Soft Toilet Paper",
+      "brand": "Charmin",
+      "category": "Household"
+    },
+    {
+      "barcode": "037000976967",
+      "name": "Dawn Ultra Dishwashing Liquid",
+      "brand": "Dawn",
+      "category": "Household"
+    },
+    {
+      "barcode": "035000521019",
+      "name": "Colgate Total Toothpaste",
+      "brand": "Colgate",
+      "category": "Personal Care"
+    },
+    {
+      "barcode": "074182410049",
+      "name": "Crest 3D White Toothpaste",
+      "brand": "Crest",
+      "category": "Personal Care"
+    },
+    {
+      "barcode": "037000478607",
+      "name": "Head & Shoulders Shampoo",
+      "brand": "Head & Shoulders",
+      "category": "Personal Care"
+    },
+    {
+      "barcode": "037000470465",
+      "name": "Pantene Pro-V Shampoo",
+      "brand": "Pantene",
+      "category": "Personal Care"
+    },
+    {
+      "barcode": "011110856210",
+      "name": "Dove Beauty Bar Soap",
+      "brand": "Dove",
+      "category": "Personal Care"
+    },
+    {
+      "barcode": "016000264601",
+      "name": "Nature Valley Granola Bars",
+      "brand": "Nature Valley",
+      "category": "Snacks"
+    },
+    {
+      "barcode": "042100005264",
+      "name": "Cheerios Cereal",
+      "brand": "General Mills",
+      "category": "Breakfast"
+    },
+    {
+      "barcode": "038000199738",
+      "name": "Frosted Flakes Cereal",
+      "brand": "Kellogg's",
+      "category": "Breakfast"
+    }
+  ]
+}
