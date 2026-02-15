@@ -119,7 +119,9 @@ struct ScannerView: View {
 
     private func handleBarcodeDetected(_ barcode: String) {
         // Fetch price comparison (navigation happens via onChange)
-        priceComparisonViewModel.fetchPriceComparison(for: barcode)
+        Task {
+            await priceComparisonViewModel.fetchPriceComparison(for: barcode)
+        }
 
         // Reset scanner for next scan
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

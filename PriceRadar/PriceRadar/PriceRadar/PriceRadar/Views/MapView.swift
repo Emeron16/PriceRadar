@@ -12,11 +12,19 @@ struct MapView: View {
     let comparison: PriceComparison
     @StateObject private var viewModel = MapViewModel()
     @State private var selectedStore: Store?
+    @State private var selectedRadius: Double = 5.0 // Default 5 miles
+
+    private var filteredStores: [Store] {
+        comparison.stores.filter { store in
+            guard let distance = store.distanceInMiles else { return true }
+            return distance <= selectedRadius
+        }
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             // Map
-            Map(coordinateRegion: $viewModel.region, annotationItems: comparison.stores) { store in
+            Map(coordinateRegion: $viewModel.region, annotationItems: filteredStores) { store in
                 MapAnnotation(coordinate: store.coordinate) {
                     StoreMapPin(
                         store: store,
@@ -30,6 +38,23 @@ struct MapView: View {
             }
             .ignoresSafeArea()
 
+            // Store count indicator (top)
+            VStack {
+                HStack {
+                    Text("\(filteredStores.count) stores within \(Int(selectedRadius)) mi")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(20)
+                    Spacer()
+                }
+                .padding()
+                Spacer()
+            }
+
             // Selected store card
             if let store = selectedStore {
                 StoreDetailCard(store: store, comparison: comparison)
@@ -39,9 +64,34 @@ struct MapView: View {
         }
         .navigationTitle("Store Map")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            viewModel.updateWithComparison(comparison)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(action: { updateRadius(5.0) }) {
+                        Label("5 miles", systemImage: selectedRadius == 5.0 ? "checkmark" : "")
+                    }
+                    Button(action: { updateRadius(10.0) }) {
+                        Label("10 miles", systemImage: selectedRadius == 10.0 ? "checkmark" : "")
+                    }
+                    Button(action: { updateRadius(20.0) }) {
+                        Label("20 miles", systemImage: selectedRadius == 20.0 ? "checkmark" : "")
+                    }
+                    Button(action: { updateRadius(50.0) }) {
+                        Label("50 miles", systemImage: selectedRadius == 50.0 ? "checkmark" : "")
+                    }
+                } label: {
+                    Label("\(Int(selectedRadius)) mi", systemImage: "location.circle")
+                }
+            }
         }
+        .onAppear {
+            viewModel.updateWithComparison(comparison, radius: selectedRadius)
+        }
+    }
+
+    private func updateRadius(_ radius: Double) {
+        selectedRadius = radius
+        viewModel.updateWithComparison(comparison, radius: radius)
     }
 }
 

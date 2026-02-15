@@ -27,6 +27,12 @@ class LocationService: NSObject, ObservableObject {
         // PERFORMANCE: Only update when moved 50 meters - prevents continuous updates
         locationManager.distanceFilter = 50
         authorizationStatus = locationManager.authorizationStatus
+
+        // Try to get last known location immediately
+        if let lastLocation = locationManager.location {
+            print("📍 Using last known location: \(lastLocation.coordinate.latitude), \(lastLocation.coordinate.longitude)")
+            self.location = lastLocation
+        }
     }
 
     // Request location permission
@@ -38,11 +44,26 @@ class LocationService: NSObject, ObservableObject {
     func startUpdatingLocation() {
         #if !os(macOS)
         guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            print("⚠️ Location permission not granted. Status: \(authorizationStatus.rawValue)")
             error = .permissionDenied
             return
         }
         #endif
+        print("🚀 Starting location updates...")
         locationManager.startUpdatingLocation()
+    }
+
+    // Request one-time location (iOS 14+)
+    func requestLocation() {
+        #if !os(macOS)
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            print("⚠️ Cannot request location - permission not granted")
+            error = .permissionDenied
+            return
+        }
+        #endif
+        print("📍 Requesting one-time location...")
+        locationManager.requestLocation()
     }
 
     // Stop updating location
@@ -78,8 +99,8 @@ extension LocationService: CLLocationManagerDelegate {
         // PERFORMANCE: Stop GPS after getting first good location to save battery
         if !hasGottenFirstLocation {
             hasGottenFirstLocation = true
-            // Stop updates after 1 second to allow for accuracy improvements
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            // Stop updates after 3 seconds to allow MapKit search to complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
                 self?.stopUpdatingLocation()
             }
         }

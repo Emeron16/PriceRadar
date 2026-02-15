@@ -26,26 +26,42 @@ class MapViewModel: ObservableObject {
     }
 
     /// Update map with price comparison data
-    func updateWithComparison(_ comparison: PriceComparison) {
-        self.stores = comparison.stores
+    func updateWithComparison(_ comparison: PriceComparison, radius: Double = 10.0) {
+        // Filter stores by radius
+        let filteredStores = comparison.stores.filter { store in
+            guard let distance = store.distanceInMiles else { return true }
+            return distance <= radius
+        }
+
+        self.stores = filteredStores
         self.userLocation = comparison.userLocation
 
-        // Calculate region to fit all stores
-        if let region = calculateRegion(for: comparison.stores, userLocation: comparison.userLocation) {
+        // Calculate region to fit filtered stores
+        if let region = calculateRegion(for: filteredStores, userLocation: comparison.userLocation, radius: radius) {
             self.region = region
         }
     }
 
     /// Calculate map region to fit all store annotations
-    private func calculateRegion(for stores: [Store], userLocation: CLLocationCoordinate2D?) -> MKCoordinateRegion? {
+    private func calculateRegion(for stores: [Store], userLocation: CLLocationCoordinate2D?, radius: Double = 10.0) -> MKCoordinateRegion? {
+        // If we have a user location, center on user with radius-based zoom
+        if let userLocation = userLocation {
+            // Convert radius from miles to approximate degrees
+            // 1 degree latitude ≈ 69 miles
+            let radiusInDegrees = (radius / 69.0) * 2.2 // 2.2x for padding
+
+            let span = MKCoordinateSpan(
+                latitudeDelta: radiusInDegrees,
+                longitudeDelta: radiusInDegrees
+            )
+
+            return MKCoordinateRegion(center: userLocation, span: span)
+        }
+
+        // Fallback: calculate bounding box if no user location
         guard !stores.isEmpty else { return nil }
 
         var coordinates = stores.map { $0.coordinate }
-
-        // Include user location if available
-        if let userLocation = userLocation {
-            coordinates.append(userLocation)
-        }
 
         // Calculate bounding box
         let latitudes = coordinates.map { $0.latitude }

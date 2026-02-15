@@ -47,8 +47,16 @@ struct PriceComparisonView: View {
     private var loadingView: some View {
         VStack(spacing: 16) {
             ProgressView()
-            Text("Finding best prices...")
-                .foregroundColor(.secondary)
+            if viewModel.isSearchingStores {
+                Text("Searching nearby stores...")
+                    .foregroundColor(.secondary)
+                Text("Using Apple Maps")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Finding best prices...")
+                    .foregroundColor(.secondary)
+            }
         }
     }
 
@@ -66,7 +74,9 @@ struct PriceComparisonView: View {
                 .padding(.horizontal)
 
             Button("Try Again") {
-                viewModel.refresh()
+                Task {
+                    await viewModel.refresh()
+                }
             }
             .buttonStyle(.bordered)
         }
@@ -106,7 +116,7 @@ struct PriceComparisonView: View {
             }
             .listStyle(.plain)
             .refreshable {
-                viewModel.refresh()
+                await viewModel.refresh()
             }
 
             // Map button
@@ -250,6 +260,19 @@ struct StoreRow: View {
                     Text(Constants.formatPrice(price))
                         .font(.headline)
                         .foregroundColor(isCheapest ? .green : .primary)
+
+                    // Show price source badge
+                    if let priceSource = store.priceSource {
+                        if priceSource == "chain_estimate" {
+                            Text("Est.")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                } else {
+                    Text("Price unavailable")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
 
                 if let difference = priceDifference, difference > 0 {

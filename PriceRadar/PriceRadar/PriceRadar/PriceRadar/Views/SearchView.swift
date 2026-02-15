@@ -104,7 +104,9 @@ struct SearchView: View {
     private func handleProductSelected(_ product: Product) {
         viewModel.selectProduct(product)
         // Fetch price comparison (navigation happens via onChange)
-        priceComparisonViewModel.fetchPriceComparison(for: product.id)
+        Task {
+            await priceComparisonViewModel.fetchPriceComparison(for: product.id)
+        }
     }
 }
 
