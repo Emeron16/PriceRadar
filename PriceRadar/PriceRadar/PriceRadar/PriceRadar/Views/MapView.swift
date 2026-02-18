@@ -248,8 +248,7 @@ struct StoreDetailCard: View {
     }
 
     private func openInMaps() {
-        let placemark = MKPlacemark(coordinate: store.coordinate)
-        let mapItem = MKMapItem(placemark: placemark)
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: store.coordinate))
         mapItem.name = store.name
         mapItem.openInMaps(launchOptions: [
             MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving
@@ -259,8 +258,11 @@ struct StoreDetailCard: View {
 
 #Preview {
     NavigationStack {
-        let vm = PriceComparisonViewModel()
-        vm.priceComparison = .sample
+        let vm: PriceComparisonViewModel = {
+            let viewModel = PriceComparisonViewModel()
+            viewModel.priceComparison = .sample
+            return viewModel
+        }()
         return MapView(comparisonViewModel: vm)
     }
 }

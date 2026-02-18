@@ -125,15 +125,36 @@ To enable crowd-sourced pricing features:
 
 **Note:** The app will fall back to local JSON data if Firebase is not configured.
 
-### 7. Optional: Configure API Keys
+### 7. Configure API Keys (Optional)
 
-For enhanced product lookup (optional, has fallbacks):
+For enhanced product lookup via Barcode Monster (optional - app works without it):
 
-1. Create a `Config.xcconfig` file
-2. Add API keys:
-   - `BARCODE_MONSTER_API_KEY = your_key_here` (for BarcodeMonster API)
-3. This file is gitignored for security
-4. Open Food Facts API requires no authentication
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Get a Barcode Monster API key:
+   - Sign up at [RapidAPI](https://rapidapi.com)
+   - Subscribe to [Barcode Monster API](https://rapidapi.com/datagram/api/barcode-monster) (500 free requests/month)
+   - Copy your API key
+
+3. Add your API key to `.env`:
+   ```
+   BARCODE_MONSTER_API_KEY=your_actual_api_key_here
+   ```
+
+4. Add `.env` file to your Xcode project:
+   - In Xcode, right-click on PriceRadar folder
+   - Select "Add Files to PriceRadar..."
+   - Select the `.env` file
+   - ⚠️ **IMPORTANT**: Uncheck "Copy items if needed" (keep reference to original)
+   - Ensure "Add to targets: PriceRadar" is checked
+
+**Note:**
+- The `.env` file is automatically gitignored for security
+- Open Food Facts API requires no authentication (always free!)
+- The app gracefully degrades if Barcode Monster API key is not configured
 
 ## Architecture
 

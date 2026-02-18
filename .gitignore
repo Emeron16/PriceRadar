@@ -92,6 +92,12 @@ iOSInjectionProject/
 # API Keys and Configuration
 Config.xcconfig
 *.xcconfig
+.env
+.env.local
+.env.*.local
+
+# Firebase Configuration (contains sensitive keys)
+GoogleService-Info.plist
 
 # macOS
 .DS_Store

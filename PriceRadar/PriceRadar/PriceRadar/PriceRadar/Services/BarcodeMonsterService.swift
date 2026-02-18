@@ -10,16 +10,26 @@ import Foundation
 class BarcodeMonsterService {
     static let shared = BarcodeMonsterService()
 
-    // TODO: Replace with your actual RapidAPI key
-    private let apiKey = "b01c477aa9mshbec428eedf6ee2dp14c2dfjsnb5f3fbf09533"
+    // Load API key from environment variables
+    private var apiKey: String? {
+        return EnvConfig.barcodeMonsterAPIKey
+    }
     private let baseURL = "https://barcode-monster.p.rapidapi.com/"
     private var cache: [String: BarcodeMonsterProduct] = [:]
 
     private init() {
         print("📊 BarcodeMonsterService initialized")
+        // Note: API key is checked lazily when getProduct() is called,
+        // ensuring .env has been loaded by PriceRadarApp.init()
     }
 
     func getProduct(barcode: String) async throws -> BarcodeMonsterProduct? {
+        // Check if API key is available
+        guard let apiKey = apiKey, !apiKey.isEmpty else {
+            print("⚠️ Barcode Monster API key not configured - skipping")
+            return nil
+        }
+
         // Check cache first
         if let cached = cache[barcode] {
             print("📦 Using cached Barcode Monster data")

@@ -14,6 +14,9 @@ struct PriceRadarApp: App {
     let persistenceController = PersistenceController.shared
 
     init() {
+        // Load environment variables from .env file
+        EnvConfig.load()
+
         // Initialize Firebase
         FirebaseApp.configure()
         print("🔥 Firebase configured")
