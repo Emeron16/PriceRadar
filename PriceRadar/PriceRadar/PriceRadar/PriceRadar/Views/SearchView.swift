@@ -39,9 +39,23 @@ struct SearchView: View {
                     }
                     .frame(maxHeight: .infinity)
                 } else if viewModel.isSearching {
-                    // Loading state
-                    ProgressView("Searching...")
-                        .frame(maxHeight: .infinity)
+                    // Loading state - improved UX
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .padding(.bottom, 8)
+
+                        Text("Searching...")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+
+                        Text("Looking for '\(viewModel.searchQuery)'")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .frame(maxHeight: .infinity)
                 } else if viewModel.searchResults.isEmpty {
                     // No results
                     VStack(spacing: 16) {
@@ -147,15 +161,38 @@ struct ProductRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Product icon
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 50, height: 50)
+            // Product image or placeholder
+            if let imageURL = product.imageURL, let url = URL(string: imageURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        // Loading spinner
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                                .frame(width: 50, height: 50)
 
-                Image(systemName: "barcode")
-                    .font(.title3)
-                    .foregroundColor(.blue)
+                            ProgressView()
+                                .tint(.blue)
+                        }
+                    case .success(let image):
+                        // Successfully loaded image
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 50, height: 50)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    case .failure(_):
+                        // Failed to load, show placeholder
+                        productPlaceholder
+                    @unknown default:
+                        productPlaceholder
+                    }
+                }
+                .frame(width: 50, height: 50)
+            } else {
+                // No image URL available
+                productPlaceholder
             }
 
             // Product info
@@ -163,6 +200,7 @@ struct ProductRow: View {
                 Text(product.name)
                     .font(.body)
                     .fontWeight(.medium)
+                    .lineLimit(2)
 
                 if let brand = product.brand {
                     Text(brand)
@@ -173,7 +211,8 @@ struct ProductRow: View {
                 if let category = product.category {
                     Text(category)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
                 }
             }
 
@@ -184,6 +223,18 @@ struct ProductRow: View {
                 .foregroundColor(.secondary)
         }
         .padding(.vertical, 8)
+    }
+
+    private var productPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.blue.opacity(0.1))
+                .frame(width: 50, height: 50)
+
+            Image(systemName: "barcode")
+                .font(.title3)
+                .foregroundColor(.blue)
+        }
     }
 }
 

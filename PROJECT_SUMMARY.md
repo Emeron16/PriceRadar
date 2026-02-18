@@ -1,8 +1,8 @@
 # PriceRadar - Project Summary
 
-## ✅ Project Status: MVP Complete + Performance Optimized
+## ✅ Project Status: MVP Complete + Performance Optimized + Crowd-Sourced Pricing
 
-All core MVP features have been implemented, tested, and optimized for production use. The app now includes comprehensive performance enhancements to prevent device overheating and excessive battery drain.
+All core MVP features have been implemented, tested, and optimized for production use. The app now includes comprehensive performance enhancements to prevent device overheating and excessive battery drain. Crowd-sourced pricing with Firebase, Open Food Facts integration, and community-driven price submissions are now live.
 
 ## 📱 What We Built
 
@@ -17,14 +17,26 @@ All core MVP features have been implemented, tested, and optimized for productio
 - ✅ **Sorting**: Sort results by price or distance
 - ✅ **Performance Optimized**: Battery-efficient with thermal management
 
+### Crowd-Sourced Pricing (NEW)
+- ✅ **Open Food Facts Integration**: Automatic product lookup with name, brand, and image
+- ✅ **Firebase Real-Time Database**: Community-verified pricing data stored in cloud
+- ✅ **Price Submission System**: Users can report prices at any store with smart autofill
+- ✅ **4-Tier Pricing Strategy**: Verified → Nearby Estimates → MSRP → Unknown
+- ✅ **Gamification**: Points system rewards users for price contributions
+- ✅ **Confidence Indicators**: Visual badges show price reliability (verified, estimated, MSRP)
+- ✅ **Dynamic Store Discovery**: MapKit finds stores within 2-50 mile radius
+- ✅ **Fallback Services**: BarcodeMonster as backup when Open Food Facts fails
+
 ### Technical Implementation
 - **Architecture**: MVVM (Model-View-ViewModel) pattern
 - **UI Framework**: SwiftUI (iOS 16+)
-- **Data Storage**: On-device JSON database (products, stores, prices)
+- **Data Storage**: Hybrid (On-device JSON + Firebase Real-Time Database)
 - **Location**: CoreLocation framework
-- **Maps**: Apple MapKit
+- **Maps**: Apple MapKit (with dynamic store discovery)
 - **Barcode Detection**: Vision framework
 - **Reactive**: Combine framework for data flow
+- **Cloud Backend**: Firebase for real-time pricing
+- **Product APIs**: Open Food Facts + BarcodeMonster (fallback)
 
 ## 📁 Project Structure
 
@@ -49,6 +61,7 @@ PriceRadar/
     │   ├── ScannerView.swift      # Barcode scanner UI
     │   ├── SearchView.swift       # Manual search UI
     │   ├── PriceComparisonView.swift # Results list
+    │   ├── PriceSubmissionView.swift # Price submission form
     │   └── MapView.swift          # Map with store pins
     │
     ├── ViewModels/                # Business logic
@@ -60,7 +73,11 @@ PriceRadar/
     ├── Services/                  # Core services
     │   ├── BarcodeService.swift   # Camera & barcode detection
     │   ├── LocationService.swift  # Location management
-    │   └── LocalPricingService.swift # JSON database handler
+    │   ├── LocalPricingService.swift # JSON database handler
+    │   ├── FirebaseService.swift  # Firebase real-time database
+    │   ├── OpenFoodFactsService.swift # Product info API
+    │   ├── BarcodeMonsterService.swift # Fallback barcode API
+    │   └── PriceAggregationService.swift # 4-tier pricing logic
     │
     ├── Data/                      # JSON databases
     │   ├── products.json          # 20 sample products
@@ -160,12 +177,47 @@ Follow **[INFO_PLIST_SETUP.md](INFO_PLIST_SETUP.md)**:
 - **Memory Leaks**: Fixed with proper cleanup in `deinit` and session lifecycle management
 - **Single-Pass Algorithms**: Distance calculated once per store instead of multiple times
 
+### Crowd-Sourced Pricing Architecture
+
+**Problem Solved:** Static JSON database is limited to ~20 products and cannot scale or update in real-time.
+
+**Solution:** Multi-tier pricing system combining:
+1. **Firebase Real-Time Database** - Community-verified prices with timestamps
+2. **Open Food Facts API** - Product metadata (name, brand, image) for millions of products
+3. **BarcodeMonster API** - Fallback barcode lookup service
+4. **PriceAggregationService** - Intelligent 4-tier pricing strategy
+
+**4-Tier Pricing Strategy:**
+1. **Verified Prices** (Best) - User-submitted prices at exact store (green badge)
+2. **Nearby Estimates** (Good) - Average of prices from nearby stores (blue badge)
+3. **MSRP** (Fallback) - Manufacturer suggested retail price (orange badge)
+4. **Unknown** (Last Resort) - No price data available (gray badge)
+
+**Price Submission Flow:**
+1. User scans/searches product
+2. Views price comparison results
+3. Taps "Report Price" button
+4. Autofill suggests nearby stores via MapKit
+5. User enters price and optional notes
+6. Firebase stores submission with timestamp
+7. User earns points (gamification)
+
+**Confidence Indicators:**
+- Visual badges show price reliability
+- Timestamps show when price was last updated
+- Distance-based estimates for stores without exact prices
+
+**Dynamic Store Discovery:**
+- MapKit searches for stores within configurable radius (2-50 miles)
+- Supports multiple store chains (Walmart, Target, Safeway, CVS, etc.)
+- Automatically geocodes store locations
+
 ### Error Handling
 - Permission denied → Shows alert with link to Settings
-- Product not found → "Not in database" message
+- Product not found → "Not in database" message (now checks Open Food Facts)
 - No stores nearby → "No stores found" with expand radius option
 - Camera initialization errors → Graceful fallback with user notification
-- Network errors → N/A (all data is local)
+- Network errors → Gracefully falls back between APIs (Firebase → Local JSON)
 
 ## 🚀 Future Enhancements (Post-MVP)
 
@@ -175,11 +227,11 @@ Follow **[INFO_PLIST_SETUP.md](INFO_PLIST_SETUP.md)**:
    - Based on search history and location patterns
    - Recommend similar/alternative products
 
-2. **Cloud Backend**
-   - Real-time pricing updates
-   - User-submitted prices (crowdsourcing)
-   - Larger product database
-   - Price history and trends
+2. ~~**Cloud Backend**~~ ✅ **IMPLEMENTED**
+   - ~~Real-time pricing updates~~ ✅ Firebase integration complete
+   - ~~User-submitted prices (crowdsourcing)~~ ✅ Price submission with gamification
+   - ~~Larger product database~~ ✅ Open Food Facts (millions of products)
+   - Price history and trends (planned)
 
 3. **Additional Features**
    - Price alerts (notify when price drops)
@@ -193,7 +245,7 @@ Follow **[INFO_PLIST_SETUP.md](INFO_PLIST_SETUP.md)**:
 4. **UI Enhancements**
    - Dark mode support
    - Custom color themes
-   - Product images from API
+   - ~~Product images from API~~ ✅ **IMPLEMENTED** (Open Food Facts)
    - Store photos and details
    - Animations and haptics
    - Onboarding flow
@@ -229,16 +281,17 @@ Follow **[INFO_PLIST_SETUP.md](INFO_PLIST_SETUP.md)**:
 - Constants extracted to centralized location
 - Formatters for consistent display (price, distance)
 
-## 🐛 Known Limitations (MVP)
+## 🐛 Known Limitations
 
-1. **Data Limitations**
-   - Only 20 products in database
-   - Only 25 store locations
-   - Prices are static (not real-time)
-   - No product images
+1. **Data Limitations** (Mostly Resolved)
+   - ~~Only 20 products in database~~ ✅ **FIXED** (Open Food Facts: millions of products)
+   - ~~Only 25 store locations~~ ✅ **IMPROVED** (Dynamic MapKit store discovery)
+   - ~~Prices are static~~ ✅ **FIXED** (Firebase real-time pricing)
+   - ~~No product images~~ ✅ **FIXED** (Open Food Facts images)
+   - Price accuracy depends on community contributions (early stage)
 
 2. **Location**
-   - Only checks 10-mile radius by default
+   - Default 10-mile radius (configurable 2-50 miles)
    - Falls back to SF if location unavailable
    - Uses 100m accuracy (acceptable trade-off for battery life)
 
@@ -248,11 +301,11 @@ Follow **[INFO_PLIST_SETUP.md](INFO_PLIST_SETUP.md)**:
    - No manual barcode entry option
    - Frame processing limited to 2 fps (intentional for performance)
 
-4. **No Backend**
-   - All data is bundled with app
-   - Can't update prices without app update
-   - Same data for all users
-   - No user accounts or personalization
+4. **User Accounts** (Planned)
+   - No user authentication yet
+   - Price submissions are anonymous
+   - No reputation system or verified contributors
+   - Points stored locally only
 
 5. **Simulator Limitations**
    - Xcode Simulator shows harmless telemetry errors (NSCocoaErrorDomain, Maps permission)
@@ -263,8 +316,8 @@ Follow **[INFO_PLIST_SETUP.md](INFO_PLIST_SETUP.md)**:
 - **iOS Version**: 16.0 or later
 - **Device**: iPhone (iPad support can be added)
 - **Permissions**: Camera, Location (when in use)
-- **Storage**: ~5 MB (app + data)
-- **Network**: Not required (all data local)
+- **Storage**: ~10 MB (app + data + Firebase SDK)
+- **Network**: Optional but recommended (required for crowd-sourced features, fallback to local data offline)
 
 ## 🎓 Learning Resources
 
@@ -312,26 +365,41 @@ If you want to understand or extend the code:
 ## 💡 Tips for Success
 
 1. **Start with Setup Guide**: Follow XCODE_SETUP_GUIDE.md step-by-step
-2. **Check Console Logs**: JSON loading shows ✅/❌ emojis in console
-3. **Test on Device**: Barcode scanning works better on real iPhone
-4. **Grant Permissions**: Both camera and location required for full functionality
-5. **Use Real Barcodes**: Test with actual products for best experience
-6. **Check Bundle Resources**: Ensure JSON files are in Copy Bundle Resources
+2. **Configure Firebase**: Add GoogleService-Info.plist for crowd-sourced features
+3. **Check Console Logs**: JSON loading shows ✅/❌ emojis in console
+4. **Test on Device**: Barcode scanning works better on real iPhone
+5. **Grant Permissions**: Both camera and location required for full functionality
+6. **Use Any Barcode**: Try any product - Open Food Facts has millions of items
+7. **Contribute Prices**: Help build the database by submitting prices you find
+8. **Check Bundle Resources**: Ensure JSON files and GoogleService-Info.plist are in Copy Bundle Resources
 
 ## 🎉 Success Criteria
 
-### Functionality
+### Core Functionality
 Your app is working correctly if:
 
 - ✅ App launches without crashes
 - ✅ Scanner tab shows camera preview
-- ✅ Barcode detection works (try Coca-Cola: 012000161551)
+- ✅ Barcode detection works (try any barcode!)
 - ✅ Search finds products (try "Coca-Cola" or "Tide")
 - ✅ Price comparison shows multiple stores
 - ✅ Cheapest store is highlighted in green
 - ✅ Map displays store pins with prices
 - ✅ Tapping pins shows store details
 - ✅ "Get Directions" opens Apple Maps
+
+### Crowd-Sourced Features
+Your crowd-sourced pricing is working if:
+
+- ✅ Product info (name, brand, image) loads from Open Food Facts
+- ✅ Price badges show confidence levels (Verified/Estimated/MSRP/Unknown)
+- ✅ "Report Price" button appears on comparison screen
+- ✅ Price submission form loads with nearby stores
+- ✅ Can successfully submit a price
+- ✅ Points counter increases after submission
+- ✅ Submitted prices appear in Firebase console
+- ✅ Submitted prices show in comparison view with "Verified" badge
+- ✅ App gracefully falls back to local JSON when offline
 
 ### Performance
 Your app is optimized if:

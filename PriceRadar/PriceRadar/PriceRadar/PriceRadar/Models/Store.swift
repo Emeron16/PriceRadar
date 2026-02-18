@@ -8,6 +8,7 @@
 import Foundation
 import CoreLocation
 import MapKit
+import SwiftUI
 
 struct Store: Identifiable, Codable, Equatable {
     let id: String
@@ -18,7 +19,8 @@ struct Store: Identifiable, Codable, Equatable {
     let longitude: Double
     var price: Double? // Price for a specific product
     var distanceInMiles: Double? // Distance from user location
-    var priceSource: String? // "exact", "chain_estimate", or "unavailable"
+    var priceSource: String? // "Verified today", "Verified Xd ago", "Chain estimate", "MSRP estimate", "Unknown"
+    var confidenceScore: Double? // 0.0 to 1.0 confidence rating for pricing
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -26,6 +28,14 @@ struct Store: Identifiable, Codable, Equatable {
 
     var hasPricing: Bool {
         price != nil
+    }
+
+    // Confidence color for UI indicators
+    var confidenceColor: Color {
+        guard let score = confidenceScore else { return .gray }
+        if score > 0.8 { return .green }
+        if score > 0.5 { return .orange }
+        return .red
     }
 
     enum CodingKeys: String, CodingKey {

@@ -188,14 +188,90 @@ class LocalPricingService {
         }
     }
 
-    /// Search multiple chains in parallel and merge with pricing data
+    /// Search ALL stores within radius (radius-based, not chain-based)
+    func searchStoresWithinRadius(
+        near location: CLLocationCoordinate2D,
+        radius: Double = 5.0,  // Default 5 miles as requested
+        productCategory: String? = nil  // NEW: Product category for filtering
+    ) async -> [Store] {
+        print("🔍 Searching stores within \(radius) miles for category: '\(productCategory ?? "general")'")
+
+        // Create search region (diameter = radius * 2)
+        let regionRadius: CLLocationDistance = radius * 1609.34 * 2  // Convert miles to meters
+        let region = MKCoordinateRegion(
+            center: location,
+            latitudinalMeters: regionRadius,
+            longitudinalMeters: regionRadius
+        )
+
+        // NEW: Use category-specific search terms
+        let searchTerms = StoreRelevanceService.shared.getSearchTerms(for: productCategory)
+        print("📋 Using search terms: \(searchTerms)")
+        var allStores: [Store] = []
+
+        await withTaskGroup(of: [Store].self) { group in
+            for term in searchTerms {
+                group.addTask {
+                    let request = MKLocalSearch.Request()
+                    request.naturalLanguageQuery = term
+                    request.region = region
+                    request.resultTypes = .pointOfInterest
+
+                    let search = MKLocalSearch(request: request)
+
+                    do {
+                        let response = try await search.start()
+                        print("✅ Found \(response.mapItems.count) results for '\(term)'")
+
+                        // Convert to Store objects
+                        return response.mapItems.compactMap { mapItem in
+                            Store(from: mapItem, userLocation: location)
+                        }
+                    } catch {
+                        print("⚠️ Search failed for '\(term)': \(error.localizedDescription)")
+                        return []
+                    }
+                }
+            }
+
+            for await stores in group {
+                allStores.append(contentsOf: stores)
+            }
+        }
+
+        print("📍 Found \(allStores.count) total stores before deduplication")
+
+        // Remove duplicates based on coordinates
+        let uniqueStores = deduplicateStores(allStores)
+
+        // Filter by exact radius (remove anything outside the radius)
+        let storesInRadius = uniqueStores.filter { store in
+            guard let distance = store.distanceInMiles else { return false }
+            return distance <= radius
+        }
+
+        print("📍 \(storesInRadius.count) unique stores within \(radius) miles")
+
+        // Sort by distance (closest first)
+        let sorted = storesInRadius.sorted { a, b in
+            (a.distanceInMiles ?? Double.infinity) < (b.distanceInMiles ?? Double.infinity)
+        }
+
+        print("✅ Returning \(sorted.count) stores within radius")
+
+        return sorted
+    }
+
+    /// DEPRECATED: Search multiple chains in parallel and merge with pricing data
+    /// Use searchStoresWithinRadius instead for radius-based search
     func searchMultipleChains(
         chains: [String],
         for barcode: String,
         near location: CLLocationCoordinate2D,
-        radius: Double = 10.0
+        radius: Double = 10.0,
+        productCategory: String? = nil  // NEW: Product category for filtering
     ) async -> [Store] {
-        print("🔍 Searching \(chains.count) chains via MapKit...")
+        print("🔍 Searching \(chains.count) chains via MapKit for category: '\(productCategory ?? "general")'")
 
         // Search all chains in parallel using async let
         var allStores: [Store] = []

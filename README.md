@@ -4,6 +4,7 @@ A SwiftUI iOS app that helps users find the best prices for products by scanning
 
 ## Features
 
+### Core Functionality
 - 📱 **Barcode Scanning**: Use your camera to scan product barcodes
 - 🔍 **Manual Search**: Search for products by name
 - 📍 **Location-Based**: Find stores near your current location
@@ -11,6 +12,15 @@ A SwiftUI iOS app that helps users find the best prices for products by scanning
 - 💰 **Price Comparison**: Compare prices across multiple retailers
 - 📊 **Best Deal Highlighting**: Quickly identify the cheapest option
 - ⚡ **Performance Optimized**: Battery-efficient with thermal management to prevent overheating
+
+### Crowd-Sourced Pricing (NEW) ✅
+- 🌐 **Open Food Facts Integration**: Automatic product information (name, brand, image) for millions of products
+- 🔥 **Firebase Real-Time Pricing**: Community-verified prices from real users
+- 📝 **Smart Price Submission**: Report prices at any store with autofill assistance
+- 📈 **4-Tier Pricing Strategy**: Verified prices, nearby estimates, MSRP, or unknown
+- 🎮 **Gamification**: Earn points for contributing price data
+- ✅ **Confidence Indicators**: Visual indicators show price reliability
+- 🗺️ **Dynamic Store Discovery**: MapKit integration finds stores within chosen radius (2-50 miles)
 
 ## Requirements
 
@@ -72,19 +82,58 @@ Or in Xcode:
    - **Privacy - Camera Usage Description**: "PriceRadar needs camera access to scan product barcodes"
    - **Privacy - Location When In Use Usage Description**: "PriceRadar needs your location to find nearby stores with better prices"
 
-### 4. Set Deployment Target
+### 4. Configure Firebase Package Dependencies
+
+Add Firebase to your project:
+
+1. In Xcode, select File → Add Package Dependencies
+2. Enter: `https://github.com/firebase/firebase-ios-sdk`
+3. Select version 10.0.0 or later
+4. Add these packages to your target:
+   - `FirebaseDatabase`
+   - `FirebaseAuth` (optional, for future user authentication)
+
+### 5. Set Deployment Target
 
 1. Select the PriceRadar target
 2. Go to "General" tab
 3. Set "Minimum Deployments" to **iOS 16.0**
 
-### 5. Optional: Configure API Key (Future Enhancement)
+### 6. Configure Firebase (Required for Crowd-Sourced Pricing)
 
-For the barcode lookup API (not required for MVP with mock data):
+To enable crowd-sourced pricing features:
+
+1. Create a Firebase project at [firebase.google.com](https://firebase.google.com)
+2. Add an iOS app to your Firebase project
+3. Download `GoogleService-Info.plist`
+4. Add it to your Xcode project (root level, ensure it's in Copy Bundle Resources)
+5. Install Firebase SDK via Swift Package Manager:
+   - In Xcode: File → Add Packages
+   - URL: `https://github.com/firebase/firebase-ios-sdk`
+   - Add `FirebaseDatabase` package
+6. Initialize Firebase in `PriceRadarApp.swift`:
+   ```swift
+   import Firebase
+
+   @main
+   struct PriceRadarApp: App {
+       init() {
+           FirebaseApp.configure()
+       }
+   }
+   ```
+
+**Note:** The app will fall back to local JSON data if Firebase is not configured.
+
+### 7. Optional: Configure API Keys
+
+For enhanced product lookup (optional, has fallbacks):
 
 1. Create a `Config.xcconfig` file
-2. Add your API key: `BARCODE_API_KEY = your_api_key_here`
+2. Add API keys:
+   - `BARCODE_MONSTER_API_KEY = your_key_here` (for BarcodeMonster API)
 3. This file is gitignored for security
+4. Open Food Facts API requires no authentication
 
 ## Architecture
 
@@ -101,6 +150,7 @@ PriceRadar/
 │   ├── ScannerView.swift
 │   ├── SearchView.swift
 │   ├── PriceComparisonView.swift
+│   ├── PriceSubmissionView.swift
 │   └── MapView.swift
 ├── ViewModels/          # Business logic
 │   ├── ScannerViewModel.swift
@@ -111,7 +161,11 @@ PriceRadar/
 │   ├── BarcodeService.swift
 │   ├── LocationService.swift
 │   ├── ProductAPIService.swift
-│   └── LocalPricingService.swift
+│   ├── LocalPricingService.swift
+│   ├── FirebaseService.swift
+│   ├── OpenFoodFactsService.swift
+│   ├── BarcodeMonsterService.swift
+│   └── PriceAggregationService.swift
 ├── Data/                # Local database (JSON)
 │   ├── products.json
 │   ├── stores.json
@@ -122,27 +176,44 @@ PriceRadar/
 
 ## Data Architecture
 
-### On-Device Database
+### Hybrid Database System
 
-The MVP uses local JSON files bundled with the app for pricing data:
+PriceRadar now uses a hybrid data approach combining local and cloud storage:
 
-- **products.json**: ~50-100 common products with real barcodes
-- **stores.json**: ~20-30 major retail locations across US cities
-- **prices.json**: ~1500-2000 price entries
+#### Firebase Real-Time Database (Primary)
+- **Community-driven pricing**: User-submitted prices with timestamps
+- **Real-time updates**: Prices sync instantly across all users
+- **Scalable**: Supports unlimited products and stores
+- **Fallback-ready**: Gracefully degrades to local data if offline
+
+#### Open Food Facts API
+- **Product metadata**: Name, brand, image, category for millions of products
+- **Free & open**: No API key required, community-maintained
+- **Global coverage**: Products from around the world
+- **Fallback**: BarcodeMonster API used if product not found
+
+#### On-Device JSON Database (Fallback)
+- **products.json**: ~20 sample products with real barcodes
+- **stores.json**: ~25 major retail locations across US cities
+- **prices.json**: ~150 price entries
+- **Offline support**: Works without internet connection
+- **Fast performance**: Instant loading from bundle
 
 ### Benefits
-- No server infrastructure costs
-- Works completely offline
-- Fast performance
-- Simple implementation
+- Unlimited product catalog (millions of items)
+- Real-time community pricing
+- Works completely offline with fallback data
+- No server infrastructure costs (Firebase free tier)
+- Gamified price submission encourages contributions
 
 ### Future Enhancements
-- Real-time pricing via cloud backend
-- User-submitted prices (crowdsourcing)
 - Machine learning recommendations based on search history
+- Price history and trending charts
+- User reputation system for verified contributors
 
 ## Usage
 
+### Basic Price Comparison
 1. Launch the app
 2. Grant camera and location permissions
 3. Choose either:
@@ -150,17 +221,31 @@ The MVP uses local JSON files bundled with the app for pricing data:
    - **Search** tab: Type product name manually
 4. View price comparison results with:
    - Store names and addresses
-   - Prices for each store
+   - Prices for each store (with confidence badges)
    - Distance from your location
    - Savings compared to other stores
 5. Tap "View on Map" to see stores on an interactive map
 6. Tap a store pin to get directions in Apple Maps
 
+### Contributing Prices (NEW)
+1. After viewing price comparison, tap "Report Price"
+2. Select a store from nearby locations (autofilled via MapKit)
+3. Enter the current price you found
+4. Optionally add notes (sale, clearance, etc.)
+5. Submit to help the community
+6. Earn points for your contributions
+
+### Understanding Price Badges
+- **Green "Verified"**: User-submitted price at this exact store
+- **Blue "Estimated"**: Average from nearby stores (within 5 miles)
+- **Orange "MSRP"**: Manufacturer suggested retail price
+- **Gray "Unknown"**: No price data available yet (be the first to report!)
+
 ## Testing
 
 ### Manual Testing Checklist
 
-**Functionality:**
+**Core Functionality:**
 - [ ] Camera permission request appears
 - [ ] Location permission request appears
 - [ ] Barcode scanning detects codes successfully
@@ -173,6 +258,18 @@ The MVP uses local JSON files bundled with the app for pricing data:
 - [ ] Manual search works correctly
 - [ ] Error states display appropriate messages
 
+**Crowd-Sourced Features:**
+- [ ] Price badges show correct confidence levels (Verified/Estimated/MSRP/Unknown)
+- [ ] "Report Price" button appears on price comparison screen
+- [ ] Price submission form autofills nearby stores
+- [ ] Store radius slider works (2-50 miles)
+- [ ] Can successfully submit a price to Firebase
+- [ ] Points counter increases after submission
+- [ ] Submitted prices appear in comparison view
+- [ ] Open Food Facts API returns product info with images
+- [ ] Fallback to BarcodeMonster works when OFF fails
+- [ ] App works offline with local JSON fallback
+
 **Performance:**
 - [ ] Device stays cool/warm during extended camera use (not hot)
 - [ ] Battery drain is minimal (~3-5% per 10 min of use)
@@ -180,14 +277,17 @@ The MVP uses local JSON files bundled with the app for pricing data:
 - [ ] Camera preview shows immediately when tapping "Start Scanning"
 - [ ] No excessive memory growth during repeated scans
 
-### Sample Products in Database
+### Sample Products for Testing
 
-Try scanning these common products (included in mock database):
+**In Local Database:**
 - Coca-Cola products
 - Lay's chips
 - Tide detergent
 - Colgate toothpaste
 - Bounty paper towels
+
+**Try Any Barcode:**
+With Open Food Facts integration, you can now scan ANY product with a barcode! The app will automatically fetch product information for millions of items worldwide.
 
 ## Troubleshooting
 
@@ -214,6 +314,27 @@ Try scanning these common products (included in mock database):
 - Simulator shows harmless errors like `NSCocoaErrorDomain Code=4099` and Maps permission warnings
 - These don't affect functionality and won't appear on real devices
 - You can safely ignore them
+
+### Firebase & Cloud Issues
+
+**"No prices found" or falling back to local data:**
+- Verify `GoogleService-Info.plist` is in your project and Copy Bundle Resources
+- Check Firebase console to ensure Realtime Database is enabled
+- Verify database rules allow read/write access
+- Check internet connection
+- App will gracefully fall back to local JSON if Firebase is unavailable
+
+**Price submission not working:**
+- Ensure Firebase is properly configured
+- Check that Realtime Database rules allow write access
+- Verify internet connectivity
+- Check Xcode console for error messages
+
+**Product images not loading:**
+- Open Food Facts API requires internet connection
+- Some products may not have images in the database
+- App will show placeholder if image unavailable
+- BarcodeMonster fallback will be used if Open Food Facts fails
 
 ### Performance Issues
 
@@ -245,19 +366,25 @@ Try scanning these common products (included in mock database):
 2. **Price History**: Track price changes over time
 3. **Price Alerts**: Notify users when prices drop
 4. **Shopping Lists**: Create and share lists with price tracking
-5. **Barcode Database Expansion**: Integrate multiple barcode APIs
+5. ~~**Barcode Database Expansion**: Integrate multiple barcode APIs~~ ✅ **IMPLEMENTED** (Open Food Facts + BarcodeMonster)
 6. **User Reviews**: Community ratings for products and stores
-7. **Cloud Sync**: Real-time pricing updates from backend
+7. ~~**Cloud Sync**: Real-time pricing updates from backend~~ ✅ **IMPLEMENTED** (Firebase)
 8. **Social Features**: Share deals with friends
 
 ## Technologies Used
 
+### Core Frameworks
 - **SwiftUI**: Modern declarative UI framework
 - **MapKit**: Native Apple maps integration
 - **CoreLocation**: Location services with battery optimization
 - **AVFoundation**: Camera access with thermal management
 - **Vision**: Barcode detection with frame dropping and request reuse
 - **Combine**: Reactive programming (for ViewModels)
+
+### Cloud & APIs
+- **Firebase Realtime Database**: Community-driven pricing data storage
+- **Open Food Facts API**: Product metadata for millions of barcoded products
+- **BarcodeMonster API**: Fallback barcode lookup service
 
 ## Performance & Optimization
 

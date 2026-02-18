@@ -9,57 +9,86 @@ import SwiftUI
 import MapKit
 
 struct MapView: View {
-    let comparison: PriceComparison
+    @ObservedObject var comparisonViewModel: PriceComparisonViewModel  // Single source of truth
     @StateObject private var viewModel = MapViewModel()
     @State private var selectedStore: Store?
-    @State private var selectedRadius: Double = 5.0 // Default 5 miles
+
+    // Get comparison from ViewModel (reactive)
+    private var comparison: PriceComparison? {
+        comparisonViewModel.priceComparison
+    }
+
+    // Use the ViewModel's search radius (single source of truth)
+    private var selectedRadius: Double {
+        comparisonViewModel.searchRadius
+    }
 
     private var filteredStores: [Store] {
-        comparison.stores.filter { store in
+        guard let comparison = comparison else { return [] }
+        return comparison.stores.filter { store in
             guard let distance = store.distanceInMiles else { return true }
             return distance <= selectedRadius
         }
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Map
-            Map(coordinateRegion: $viewModel.region, annotationItems: filteredStores) { store in
-                MapAnnotation(coordinate: store.coordinate) {
-                    StoreMapPin(
-                        store: store,
-                        isCheapest: store.id == comparison.cheapestStore?.id,
-                        isSelected: selectedStore?.id == store.id
-                    )
-                    .onTapGesture {
-                        selectedStore = store
+        Group {
+            if let comparison = comparison {
+                ZStack(alignment: .bottom) {
+                    // Map
+                    Map(coordinateRegion: $viewModel.region, showsUserLocation: true, annotationItems: filteredStores) { store in
+                        MapAnnotation(coordinate: store.coordinate) {
+                            StoreMapPin(
+                                store: store,
+                                isCheapest: store.id == comparison.cheapestStore?.id,
+                                isSelected: selectedStore?.id == store.id
+                            )
+                            .onTapGesture {
+                                selectedStore = store
+                            }
+                        }
+                    }
+                    .ignoresSafeArea()
+
+                    // Store count indicator (top)
+                    VStack {
+                        HStack {
+                            Text("\(filteredStores.count) stores within \(Int(selectedRadius)) mi")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.black.opacity(0.7))
+                                .cornerRadius(20)
+                            Spacer()
+                        }
+                        .padding()
+                        Spacer()
+                    }
+
+                    // Selected store card
+                    if let store = selectedStore {
+                        StoreDetailCard(store: store, comparison: comparison)
+                            .transition(.move(edge: .bottom))
+                            .animation(.spring(), value: selectedStore)
                     }
                 }
-            }
-            .ignoresSafeArea()
-
-            // Store count indicator (top)
-            VStack {
-                HStack {
-                    Text("\(filteredStores.count) stores within \(Int(selectedRadius)) mi")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(20)
-                    Spacer()
+                .onAppear {
+                    viewModel.updateWithComparison(comparison, radius: selectedRadius)
                 }
-                .padding()
-                Spacer()
-            }
-
-            // Selected store card
-            if let store = selectedStore {
-                StoreDetailCard(store: store, comparison: comparison)
-                    .transition(.move(edge: .bottom))
-                    .animation(.spring(), value: selectedStore)
+                .onChange(of: comparison.stores.count) { oldCount, newCount in
+                    print("🗺️ MAP VIEW: Store count changed from \(oldCount) to \(newCount) - updating region")
+                    viewModel.updateWithComparison(comparison, radius: selectedRadius)
+                }
+            } else {
+                // Loading state
+                VStack {
+                    ProgressView()
+                    Text("Loading map...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .navigationTitle("Store Map")
@@ -84,14 +113,14 @@ struct MapView: View {
                 }
             }
         }
-        .onAppear {
-            viewModel.updateWithComparison(comparison, radius: selectedRadius)
-        }
     }
 
     private func updateRadius(_ radius: Double) {
-        selectedRadius = radius
-        viewModel.updateWithComparison(comparison, radius: radius)
+        print("🗺️🗺️🗺️ MAP VIEW RADIUS CHANGED: \(radius) miles 🗺️🗺️🗺️")
+        comparisonViewModel.searchRadius = radius
+        Task {
+            await comparisonViewModel.refresh()
+        }
     }
 }
 
@@ -230,6 +259,8 @@ struct StoreDetailCard: View {
 
 #Preview {
     NavigationStack {
-        MapView(comparison: .sample)
+        let vm = PriceComparisonViewModel()
+        vm.priceComparison = .sample
+        return MapView(comparisonViewModel: vm)
     }
 }

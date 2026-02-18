@@ -23,6 +23,42 @@ struct Product: Identifiable, Codable, Equatable {
     }
 }
 
+// MARK: - API Initializers
+extension Product {
+    /// Initialize from Open Food Facts API response (PRIMARY SOURCE)
+    init(barcode: String, offProduct: OFFProduct) {
+        self.init(
+            id: barcode,
+            name: offProduct.displayName,
+            brand: offProduct.displayBrand,
+            category: offProduct.categories ?? "General",
+            imageURL: offProduct.image_small_url
+        )
+    }
+
+    /// Initialize from Barcode Monster API response (SECONDARY - for autofill)
+    init(barcode: String, barcodeMonsterProduct: BarcodeMonsterProduct) {
+        self.init(
+            id: barcode,
+            name: barcodeMonsterProduct.name,
+            brand: barcodeMonsterProduct.brand,
+            category: barcodeMonsterProduct.category ?? "General",
+            imageURL: nil  // Barcode Monster doesn't provide images
+        )
+    }
+
+    /// Initialize from user input (FALLBACK - manual entry)
+    init(barcode: String, userEnteredName: String) {
+        self.init(
+            id: barcode,
+            name: userEnteredName,
+            brand: "Unknown",
+            category: "User Added",
+            imageURL: nil
+        )
+    }
+}
+
 // MARK: - Sample Data for Previews
 extension Product {
     static let sample = Product(

@@ -18,13 +18,15 @@ class PriceComparisonViewModel: ObservableObject {
     @Published var sortBy: SortOption = .price
     @Published var useMapKit: Bool = true
     @Published var isSearchingStores: Bool = false
+    @Published var needsCrowdsourcing = false  // NEW: Show crowdsourcing banner
+    @Published var productForCrowdsourcing: Product?  // NEW: Product needing price data
+    @Published var searchRadius: Double = 5.0  // NEW: User-configurable search radius (default 5 miles)
 
     private let pricingService = LocalPricingService.shared
     private let locationService = LocationService()
-
-    // Supported store chains for MapKit search
-    private let supportedChains = ["Walmart", "Target", "Safeway", "CVS", "Walgreens",
-                                   "Ralphs", "Jewel-Osco", "H-E-B", "Kroger", "Whole Foods"]
+    private let offService = OpenFoodFactsService.shared
+    private let barcodeMonsterService = BarcodeMonsterService.shared
+    private let priceAggregationService = PriceAggregationService.shared
 
     enum SortOption {
         case price
@@ -57,21 +59,15 @@ class PriceComparisonViewModel: ObservableObject {
         }
     }
 
-    /// Fetch price comparison using MapKit Local Search
+    /// Fetch price comparison using MapKit Local Search with smart 3-tier product lookup
     private func fetchPriceComparisonWithMapKit(for barcode: String) async {
         // Clear previous results
         priceComparison = nil
         isLoading = true
         isSearchingStores = true
         errorMessage = nil
-
-        // Get product info
-        guard let product = pricingService.findProduct(barcode: barcode) else {
-            errorMessage = "Product not found in database"
-            isLoading = false
-            isSearchingStores = false
-            return
-        }
+        needsCrowdsourcing = false
+        productForCrowdsourcing = nil
 
         // Wait for user location (with timeout)
         let userLocation = await waitForLocation(timeout: 5.0)
@@ -96,15 +92,130 @@ class PriceComparisonViewModel: ObservableObject {
         }
 
         print("📍 Using location: \(userLocation.latitude), \(userLocation.longitude)")
-        print("🔍 Searching stores via MapKit for barcode: \(barcode)")
+        print("🔍 Search radius: \(searchRadius) miles")
 
-        // Search MapKit for stores
-        let stores = await pricingService.searchMultipleChains(
-            chains: supportedChains,
-            for: barcode,
+        // ═══════════════════════════════════════════════════════════
+        // TIER 1: Try Open Food Facts (product info + images for food)
+        // ═══════════════════════════════════════════════════════════
+        if let offProduct = try? await offService.getProduct(barcode: barcode) {
+
+            print("✅ Product found in Open Food Facts - using for product info")
+
+            // Get ALL stores within radius (radius-based, not chain-based)
+            print("🗺️ Calling searchStoresWithinRadius with radius: \(searchRadius) miles, category: \(offProduct.categories ?? "none")")
+            let stores = await pricingService.searchStoresWithinRadius(
+                near: userLocation,
+                radius: searchRadius,
+                productCategory: offProduct.categories  // NEW: Pass category for filtering
+            )
+            print("🗺️ MapKit returned \(stores.count) stores")
+
+            isSearchingStores = false
+
+            // Fall back to local database if MapKit returns nothing
+            if stores.isEmpty {
+                print("⚠️ No MapKit results, falling back to local database")
+                fetchPriceComparisonLocal(for: barcode)
+                return
+            }
+
+            // Use OFF product data
+            let product = Product(barcode: barcode, offProduct: offProduct)
+
+            // Get prices from crowd-sourced Firebase
+            let storesWithPrices = await priceAggregationService.getPrices(
+                for: barcode,
+                at: stores,
+                userLocation: userLocation
+            )
+
+            var comparison = PriceComparison(
+                product: product,
+                stores: storesWithPrices,
+                userLocation: userLocation
+            )
+
+            applySorting(to: &comparison)
+            priceComparison = comparison
+            productForCrowdsourcing = product
+
+            // Only show crowdsourcing banner if we have NO prices at all
+            let hasPrices = storesWithPrices.contains(where: { $0.price != nil })
+            needsCrowdsourcing = !hasPrices
+
+            isLoading = false
+            return
+        }
+
+        print("⚠️ Product not in Open Food Facts - trying Barcode Monster")
+
+        // ═══════════════════════════════════════════════════════════
+        // TIER 2: Try Barcode Monster (autofill for crowdsourcing)
+        // ═══════════════════════════════════════════════════════════
+        if let bmProduct = try? await barcodeMonsterService.getProduct(barcode: barcode) {
+
+            print("📦 Product found in Barcode Monster - NEEDS crowdsourcing (autofilled)")
+
+            // Get ALL stores within radius (radius-based, not chain-based)
+            print("🗺️ Calling searchStoresWithinRadius with radius: \(searchRadius) miles, category: \(bmProduct.category ?? "none")")
+            let stores = await pricingService.searchStoresWithinRadius(
+                near: userLocation,
+                radius: searchRadius,
+                productCategory: bmProduct.category  // NEW: Pass category for filtering
+            )
+            print("🗺️ MapKit returned \(stores.count) stores")
+
+            isSearchingStores = false
+
+            // Fall back to local database if MapKit returns nothing
+            if stores.isEmpty {
+                print("⚠️ No MapKit results, falling back to local database")
+                fetchPriceComparisonLocal(for: barcode)
+                return
+            }
+
+            // Create product from Barcode Monster data
+            let product = Product(barcode: barcode, barcodeMonsterProduct: bmProduct)
+
+            // Check Firebase for any crowd-sourced prices
+            let storesWithPrices = await priceAggregationService.getPrices(
+                for: barcode,
+                at: stores,
+                userLocation: userLocation
+            )
+
+            var comparison = PriceComparison(
+                product: product,
+                stores: storesWithPrices,
+                userLocation: userLocation
+            )
+
+            applySorting(to: &comparison)
+            priceComparison = comparison
+            productForCrowdsourcing = product
+
+            // Only show crowdsourcing banner if we have NO prices at all
+            let hasPrices = storesWithPrices.contains(where: { $0.price != nil })
+            needsCrowdsourcing = !hasPrices
+
+            isLoading = false
+            return
+        }
+
+        print("❌ Product not in any API - NEEDS manual crowdsourcing")
+
+        // ═══════════════════════════════════════════════════════════
+        // TIER 3: Manual entry (neither API has product)
+        // ═══════════════════════════════════════════════════════════
+
+        // Get ALL stores within radius (radius-based, not chain-based)
+        print("🗺️ Calling searchStoresWithinRadius with radius: \(searchRadius) miles (no category - manual entry)")
+        let stores = await pricingService.searchStoresWithinRadius(
             near: userLocation,
-            radius: Constants.defaultSearchRadiusMiles
+            radius: searchRadius,
+            productCategory: nil  // NEW: No category for manual entry - use general stores
         )
+        print("🗺️ MapKit returned \(stores.count) stores")
 
         isSearchingStores = false
 
@@ -115,67 +226,113 @@ class PriceComparisonViewModel: ObservableObject {
             return
         }
 
-        var comparison = PriceComparison(
-            product: product,
-            stores: stores,
+        // Create placeholder product (user will enter name)
+        let product = Product(barcode: barcode, userEnteredName: "Unknown Product")
+
+        // Check Firebase for any crowd-sourced prices
+        let storesWithPrices = await priceAggregationService.getPrices(
+            for: barcode,
+            at: stores,
             userLocation: userLocation
         )
 
-        // Sort based on current sort option
+        var comparison = PriceComparison(
+            product: product,
+            stores: storesWithPrices,
+            userLocation: userLocation
+        )
+
         applySorting(to: &comparison)
-
         priceComparison = comparison
-        isLoading = false
+        productForCrowdsourcing = product
 
-        print("✅ MapKit search complete: \(stores.count) stores found")
+        // Only show crowdsourcing banner if we have NO prices at all
+        let hasPrices = storesWithPrices.contains(where: { $0.price != nil })
+        needsCrowdsourcing = !hasPrices
+
+        isLoading = false
     }
 
-    /// Fetch price comparison using local database (original implementation)
+    /// Fetch price comparison using local database (fallback for no location/MapKit disabled)
     func fetchPriceComparisonLocal(for barcode: String) {
         // Clear previous results
         priceComparison = nil
         isLoading = true
         isSearchingStores = false
         errorMessage = nil
+        needsCrowdsourcing = false
+        productForCrowdsourcing = nil
 
-        // Get product info
-        guard let product = pricingService.findProduct(barcode: barcode) else {
-            errorMessage = "Product not found in database"
+        // Try to get product from local database first (legacy support)
+        let localProduct = pricingService.findProduct(barcode: barcode)
+
+        // Get user location (use default if not available)
+        let userLocation = locationService.currentLocation?.coordinate ??
+                           CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
+
+        // Run API lookup asynchronously
+        Task {
+            var productToUse: Product?
+
+            // TIER 1: Try Open Food Facts
+            if let offProduct = try? await offService.getProduct(barcode: barcode) {
+                print("✅ Product found in Open Food Facts")
+                productToUse = Product(barcode: barcode, offProduct: offProduct)
+                needsCrowdsourcing = !offProduct.hasPricing
+
+            // TIER 2: Try Barcode Monster
+            } else if let bmProduct = try? await barcodeMonsterService.getProduct(barcode: barcode) {
+                print("📦 Product found in Barcode Monster - needs crowdsourcing")
+                productToUse = Product(barcode: barcode, barcodeMonsterProduct: bmProduct)
+                needsCrowdsourcing = true
+
+            // TIER 3: Use local product or create placeholder
+            } else if let local = localProduct {
+                print("📂 Using local database product")
+                productToUse = local
+            } else {
+                print("❌ Product not found in any source - manual entry needed")
+                productToUse = Product(barcode: barcode, userEnteredName: "Unknown Product")
+                needsCrowdsourcing = true
+            }
+
+            guard let product = productToUse else {
+                errorMessage = "Unable to load product information"
+                isLoading = false
+                return
+            }
+
+            // Fetch stores with prices from local database
+            let stores = pricingService.getStoresWithPrices(
+                for: barcode,
+                near: userLocation,
+                radiusMiles: Constants.defaultSearchRadiusMiles
+            )
+
+            // Get crowd-sourced prices from Firebase
+            let storesWithPrices = await priceAggregationService.getPrices(
+                for: barcode,
+                at: stores.isEmpty ? [] : stores,
+                userLocation: userLocation
+            )
+
+            // Always create a comparison object, even if stores are empty
+            var comparison = PriceComparison(
+                product: product,
+                stores: storesWithPrices,
+                userLocation: userLocation
+            )
+
+            // Sort based on current sort option
+            applySorting(to: &comparison)
+
+            priceComparison = comparison
+            productForCrowdsourcing = product
+
+            // Clear any previous error messages
+            errorMessage = nil
             isLoading = false
-            return
         }
-
-        // Get user location
-        guard let userLocation = locationService.currentLocation?.coordinate else {
-            // If no location, still show stores but without distance sorting
-            fetchWithoutLocation(product: product, barcode: barcode)
-            return
-        }
-
-        // Fetch stores with prices
-        let stores = pricingService.getStoresWithPrices(
-            for: barcode,
-            near: userLocation,
-            radiusMiles: Constants.defaultSearchRadiusMiles
-        )
-
-        if stores.isEmpty {
-            errorMessage = "No stores found with pricing for this product nearby"
-            isLoading = false
-            return
-        }
-
-        var comparison = PriceComparison(
-            product: product,
-            stores: stores,
-            userLocation: userLocation
-        )
-
-        // Sort based on current sort option
-        applySorting(to: &comparison)
-
-        priceComparison = comparison
-        isLoading = false
     }
 
     /// Wait for user location with timeout
@@ -224,32 +381,6 @@ class PriceComparisonViewModel: ObservableObject {
         return nil
     }
 
-    /// Fetch without location (fallback)
-    private func fetchWithoutLocation(product: Product, barcode: String) {
-        // Use a default location (San Francisco) for demo purposes
-        let defaultLocation = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
-
-        let stores = pricingService.getStoresWithPrices(
-            for: barcode,
-            near: defaultLocation,
-            radiusMiles: Constants.maxSearchRadiusMiles
-        )
-
-        if stores.isEmpty {
-            errorMessage = "No pricing data available for this product"
-            isLoading = false
-            return
-        }
-
-        let comparison = PriceComparison(
-            product: product,
-            stores: stores,
-            userLocation: nil
-        )
-
-        priceComparison = comparison
-        isLoading = false
-    }
 
     /// Change sort option and re-sort stores
     func changeSortOption(_ option: SortOption) {
@@ -270,7 +401,11 @@ class PriceComparisonViewModel: ObservableObject {
 
     /// Refresh prices
     func refresh() async {
-        guard let barcode = priceComparison?.product.id else { return }
+        guard let barcode = priceComparison?.product.id else {
+            print("❌ Refresh failed: No barcode available")
+            return
+        }
+        print("🔄 Refresh called with radius: \(searchRadius) miles for barcode: \(barcode)")
         await fetchPriceComparison(for: barcode)
     }
 
