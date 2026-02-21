@@ -138,6 +138,8 @@ struct SearchBar: View {
                 .textFieldStyle(.plain)
                 .focused(isFocused)
                 .submitLabel(.search)
+                .autocorrectionDisabled(true)
+                .textInputAutocapitalization(.never)
                 .onSubmit {
                     isFocused.wrappedValue = false
                 }

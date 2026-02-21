@@ -94,6 +94,152 @@ class FirebaseService: ObservableObject {
         try await awardPoints(userId: userId, points: 10)
     }
 
+    // MARK: - Bulk Receipt Submissions
+
+    /// Submit entire receipt with batch writes
+    /// - Parameters:
+    ///   - receipt: Receipt with line items to submit
+    ///   - store: Store where receipt was from
+    /// - Returns: Number of items successfully submitted
+    func submitReceipt(
+        receipt: Receipt,
+        store: Store
+    ) async throws -> Int {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw FirebaseError.notAuthenticated
+        }
+
+        var submittedCount = 0
+        var failedCount = 0
+
+        // Use batch writes for atomicity (up to 500 operations per batch)
+        let batch = db.batch()
+
+        for lineItem in receipt.lineItems {
+            // Only submit items with matched products
+            guard let barcode = lineItem.matchedBarcode else {
+                print("⚠️ Skipping item without barcode: \(lineItem.description)")
+                failedCount += 1
+                continue
+            }
+
+            let unitPrice = lineItem.unitPrice ?? (lineItem.totalPrice / lineItem.quantity)
+
+            let submission: [String: Any] = [
+                "barcode": barcode,
+                "product_name": bestProductName(for: lineItem),
+                "store_id": store.id,
+                "store_name": store.name,
+                "chain": store.chain,
+                "price": unitPrice,
+                "latitude": store.latitude,
+                "longitude": store.longitude,
+                "address": store.address,
+                "user_id": userId,
+                "timestamp": Timestamp(date: Date()),
+                "verified": false,
+                "upvotes": 0,
+                "downvotes": 0,
+                "confidence_score": confidenceToScore(lineItem.matchingConfidence),
+                "source": "receipt_ocr",
+                "receipt_id": receipt.id  // NEW FIELD - group related submissions
+            ]
+
+            let docRef = db.collection("price_submissions").document()
+            batch.setData(submission, forDocument: docRef)
+            submittedCount += 1
+        }
+
+        // Commit batch
+        try await batch.commit()
+        print("✅ Bulk receipt submission: \(submittedCount) items submitted, \(failedCount) skipped")
+
+        // Award points based on tiered system
+        let points = calculateReceiptPoints(itemCount: submittedCount)
+        try await awardPoints(userId: userId, points: points)
+
+        // Store receipt metadata for user history (non-fatal — don't block submission on this)
+        do {
+            try await saveReceiptRecord(receipt: receipt, itemsSubmitted: submittedCount)
+        } catch {
+            print("⚠️ Receipt record save failed (non-fatal): \(error.localizedDescription)")
+        }
+
+        return submittedCount
+    }
+
+    /// Build the best available product name for a receipt line item.
+    /// Prefers brand + product name when the raw OFF name is too generic (single word),
+    /// and falls back to the cleaned receipt description if the matched name is still poor.
+    private func bestProductName(for item: ReceiptLineItem) -> String {
+        // Generic single-word names that add no value
+        let genericNames: Set<String> = ["original", "unknown", "unknown product", "product", "item"]
+
+        if let product = item.matchedProduct {
+            let rawName = product.name.trimmingCharacters(in: .whitespaces)
+            let isGeneric = genericNames.contains(rawName.lowercased()) || rawName.split(separator: " ").count <= 1
+
+            if isGeneric, let brand = product.brand, brand != "Generic", brand != "Unknown" {
+                // Combine brand + name (e.g., "SunChips Original")
+                return "\(brand) \(rawName)"
+            } else if !isGeneric {
+                return rawName
+            }
+        }
+
+        // Fall back to the receipt description (e.g., "071050315 SUNCHIPS" → strip leading barcode)
+        let desc = item.description
+        let barcodePrefix = try? NSRegularExpression(pattern: #"^\d{8,14}\s+"#)
+        let range = NSRange(desc.startIndex..., in: desc)
+        let cleaned = barcodePrefix?.stringByReplacingMatches(in: desc, range: range, withTemplate: "") ?? desc
+        return cleaned.trimmingCharacters(in: .whitespaces).capitalized
+    }
+
+    /// Calculate points awarded for receipt based on item count (tiered system)
+    private func calculateReceiptPoints(itemCount: Int) -> Int {
+        switch itemCount {
+        case 0...4:
+            return itemCount * 10  // Same as manual (10 per item)
+        case 5...9:
+            return 50  // Bonus for small receipts
+        case 10...19:
+            return 100  // Bonus for medium receipts
+        case 20...:
+            return 200  // Bonus for large receipts
+        default:
+            return 0
+        }
+    }
+
+    /// Convert matching confidence to numerical score
+    private func confidenceToScore(_ confidence: ReceiptLineItem.MatchingConfidence) -> Double {
+        switch confidence {
+        case .high: return 0.9
+        case .medium: return 0.7
+        case .low: return 0.5
+        case .none: return 0.3
+        }
+    }
+
+    /// Save receipt metadata to receipt_uploads collection
+    private func saveReceiptRecord(receipt: Receipt, itemsSubmitted: Int) async throws {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        let receiptData: [String: Any] = [
+            "receipt_id": receipt.id,
+            "user_id": userId,
+            "merchant_name": receipt.merchantName ?? "Unknown",
+            "upload_date": Timestamp(date: receipt.uploadDate),
+            "total_items": receipt.lineItems.count,
+            "submitted_items": itemsSubmitted,
+            "total_amount": receipt.totalAmount ?? 0.0,
+            "processing_time_seconds": receipt.ocrProcessingTime
+        ]
+
+        try await db.collection("receipt_uploads").document(receipt.id).setData(receiptData)
+        print("✅ Receipt record saved: \(receipt.id)")
+    }
+
     // MARK: - Price Queries
 
     func getPricesForProduct(

@@ -28,10 +28,12 @@ class SearchViewModel: ObservableObject {
     }
 
     private func setupSearchDebouncing() {
-        // Debounce search input (wait 800ms after user stops typing to avoid premature cancellations)
+        // Debounce search input — wait 600ms, deduplicate case-insensitively to prevent
+        // autocorrect capitalization changes from triggering redundant searches
         $searchQuery
-            .debounce(for: .milliseconds(800), scheduler: RunLoop.main)
-            .removeDuplicates()
+            .debounce(for: .milliseconds(600), scheduler: RunLoop.main)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .removeDuplicates { $0.lowercased() == $1.lowercased() }
             .sink { [weak self] query in
                 self?.performSearch(query: query)
             }
@@ -106,18 +108,28 @@ class SearchViewModel: ObservableObject {
         isSearching = false
     }
 
-    /// Search Open Food Facts API
+    /// Search Open Food Facts API using v2 search endpoint (faster than cgi/search.pl)
     private func searchOpenFoodFacts(query: String) async -> [Product] {
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://world.openfoodfacts.org/cgi/search.pl?search_terms=\(encodedQuery)&search_simple=1&action=process&json=1&page_size=20") else {
+        var components = URLComponents(string: "https://world.openfoodfacts.org/api/v2/search")!
+        components.queryItems = [
+            URLQueryItem(name: "search_terms", value: query),
+            URLQueryItem(name: "page_size", value: "10"),
+            URLQueryItem(name: "fields", value: "code,product_name,brands,categories,image_small_url,image_url")
+        ]
+
+        guard let url = components.url else {
             print("❌ Invalid search URL")
             return []
         }
 
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.setValue("PriceRadar iOS App - Contact: admin@priceradar.app", forHTTPHeaderField: "User-Agent")
+
         do {
             print("🌐 Fetching from Open Food Facts: \(url)")
 
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(for: request)
 
             // Check if cancelled after network call
             guard !Task.isCancelled else {
@@ -157,8 +169,11 @@ class SearchViewModel: ObservableObject {
         } catch is CancellationError {
             print("⚠️ OFF search cancelled: \(query)")
             return []
+        } catch let decodingError as DecodingError {
+            print("❌ OFF decode error for '\(query)': \(decodingError)")
+            return []
         } catch {
-            print("❌ OFF search error: \(error.localizedDescription)")
+            print("❌ OFF search error for '\(query)': \(error.localizedDescription)")
             return []
         }
     }
@@ -182,10 +197,24 @@ class SearchViewModel: ObservableObject {
 // MARK: - Open Food Facts Search Models
 
 struct OFFSearchResult: Codable {
-    let count: Int
-    let page: Int
-    let page_size: Int
+    let count: Int?
+    let page: Int?
+    let page_size: Int?
     let products: [OFFSearchProduct]
+
+    // v2 API uses different top-level key in some responses
+    private enum CodingKeys: String, CodingKey {
+        case count, page, page_size, products
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        count = try container.decodeIfPresent(Int.self, forKey: .count)
+        page = try container.decodeIfPresent(Int.self, forKey: .page)
+        page_size = try container.decodeIfPresent(Int.self, forKey: .page_size)
+        // products key is present in both v1 and v2 responses
+        products = (try? container.decode([OFFSearchProduct].self, forKey: .products)) ?? []
+    }
 }
 
 struct OFFSearchProduct: Codable {

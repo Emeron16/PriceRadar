@@ -21,6 +21,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("Search", systemImage: "magnifyingglass")
                 }
+
+            ReceiptScannerView()
+                .tabItem {
+                    Label("Receipt", systemImage: "doc.text.viewfinder")
+                }
         }
     }
 }
