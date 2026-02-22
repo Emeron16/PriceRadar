@@ -17,10 +17,10 @@ struct SearchView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Search bar
-                SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFocused)
+                SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFocused, onSearch: viewModel.search)
                     .padding()
 
-                if viewModel.searchQuery.isEmpty {
+                if !viewModel.hasSearched && !viewModel.isSearching {
                     // Empty state
                     VStack(spacing: 20) {
                         Image(systemName: "magnifyingglass.circle.fill")
@@ -56,8 +56,8 @@ struct SearchView: View {
                             .padding(.horizontal, 40)
                     }
                     .frame(maxHeight: .infinity)
-                } else if viewModel.searchResults.isEmpty {
-                    // No results
+                } else if viewModel.hasSearched && viewModel.searchResults.isEmpty {
+                    // No results after a search was run
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.magnifyingglass")
                             .font(.system(size: 60))
@@ -74,15 +74,21 @@ struct SearchView: View {
                     .frame(maxHeight: .infinity)
                 } else {
                     // Search results
-                    List(viewModel.searchResults) { product in
-                        ProductRow(product: product)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                isSearchFocused = false // Dismiss keyboard
-                                handleProductSelected(product)
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(viewModel.searchResults) { product in
+                                ProductRow(product: product)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        isSearchFocused = false
+                                        handleProductSelected(product)
+                                    }
+                                    .padding(.horizontal)
+                                Divider()
+                                    .padding(.leading, 74)
                             }
+                        }
                     }
-                    .listStyle(.plain)
                 }
             }
             .navigationTitle("Search")
@@ -128,6 +134,7 @@ struct SearchView: View {
 struct SearchBar: View {
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
+    var onSearch: () -> Void
 
     var body: some View {
         HStack {
@@ -142,6 +149,7 @@ struct SearchBar: View {
                 .textInputAutocapitalization(.never)
                 .onSubmit {
                     isFocused.wrappedValue = false
+                    onSearch()
                 }
 
             if !text.isEmpty {
@@ -150,6 +158,16 @@ struct SearchBar: View {
                         .foregroundColor(.secondary)
                 }
             }
+
+            Button(action: {
+                isFocused.wrappedValue = false
+                onSearch()
+            }) {
+                Text("Search")
+                    .fontWeight(.semibold)
+                    .foregroundColor(.blue)
+            }
+            .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(12)
         .background(Color(.systemGray6))

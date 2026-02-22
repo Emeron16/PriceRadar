@@ -155,7 +155,9 @@ struct PriceComparisonView: View {
                         StoreRow(
                             store: store,
                             isCheapest: store.id == comparison.cheapestStore?.id,
-                            priceDifference: comparison.priceDifference(for: store)
+                            priceDifference: comparison.priceDifference(for: store),
+                            product: comparison.product,
+                            allStores: comparison.stores
                         )
                     }
                 }
@@ -344,6 +346,8 @@ struct StoreRow: View {
     let store: Store
     let isCheapest: Bool
     let priceDifference: Double?
+    let product: Product
+    let allStores: [Store]
 
     @State private var showStoreDetail = false
 
@@ -422,7 +426,7 @@ struct StoreRow: View {
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showStoreDetail) {
-            StoreDetailView(store: store, isCheapest: isCheapest)
+            StoreDetailView(store: store, isCheapest: isCheapest, product: product, allStores: allStores)
         }
     }
 }
@@ -431,9 +435,12 @@ struct StoreRow: View {
 struct StoreDetailView: View {
     let store: Store
     let isCheapest: Bool
+    let product: Product
+    let allStores: [Store]
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @State private var showPriceSubmission = false
 
     var body: some View {
         NavigationStack {
@@ -547,14 +554,14 @@ struct StoreDetailView: View {
                         }
                     }
 
-                    Button(action: { dismiss() }) {
+                    Button(action: { showPriceSubmission = true }) {
                         HStack {
-                            Image(systemName: "phone.fill")
+                            Image(systemName: "tag.fill")
                                 .foregroundColor(.green)
-                            Text("Call Store")
+                            Text("Report Price Here")
                                 .fontWeight(.semibold)
                             Spacer()
-                            Image(systemName: "arrow.up.right")
+                            Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -569,6 +576,13 @@ struct StoreDetailView: View {
                         dismiss()
                     }
                 }
+            }
+            .sheet(isPresented: $showPriceSubmission) {
+                PriceSubmissionView(
+                    product: product,
+                    stores: allStores,
+                    preselectedStore: store
+                )
             }
         }
     }

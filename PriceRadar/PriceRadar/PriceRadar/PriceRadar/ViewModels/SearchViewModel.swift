@@ -14,46 +14,34 @@ class SearchViewModel: ObservableObject {
     @Published var searchQuery: String = ""
     @Published var searchResults: [Product] = []
     @Published var isSearching: Bool = false
+    @Published var hasSearched: Bool = false
     @Published var selectedProduct: Product?
 
     private let pricingService = LocalPricingService.shared
     private let offService = OpenFoodFactsService.shared
-    private var cancellables = Set<AnyCancellable>()
 
     // Track search task for cancellation
     private var currentSearchTask: Task<Void, Never>?
 
-    init() {
-        setupSearchDebouncing()
-    }
+    init() {}
 
-    private func setupSearchDebouncing() {
-        // Debounce search input — wait 600ms, deduplicate case-insensitively to prevent
-        // autocorrect capitalization changes from triggering redundant searches
-        $searchQuery
-            .debounce(for: .milliseconds(600), scheduler: RunLoop.main)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .removeDuplicates { $0.lowercased() == $1.lowercased() }
-            .sink { [weak self] query in
-                self?.performSearch(query: query)
-            }
-            .store(in: &cancellables)
-    }
-
-    private func performSearch(query: String) {
+    /// Triggered only when the user explicitly taps Search or presses return
+    func search() {
+        let query = searchQuery.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else {
             searchResults = []
             isSearching = false
             return
         }
 
-        // Cancel any existing search
+        // Cancel any in-flight search
         currentSearchTask?.cancel()
 
         isSearching = true
+        hasSearched = true
+        searchResults = []
 
-        // Create new search task
-        currentSearchTask = Task {
+        currentSearchTask = Task { @MainActor in
             await searchProducts(query: query)
         }
     }
@@ -108,12 +96,17 @@ class SearchViewModel: ObservableObject {
         isSearching = false
     }
 
-    /// Search Open Food Facts API using v2 search endpoint (faster than cgi/search.pl)
+    /// Search Open Food Facts using cgi/search.pl — the v2 search_terms parameter is broken
+    /// and returns the entire database regardless of query.
     private func searchOpenFoodFacts(query: String) async -> [Product] {
-        var components = URLComponents(string: "https://world.openfoodfacts.org/api/v2/search")!
+        var components = URLComponents(string: "https://world.openfoodfacts.org/cgi/search.pl")!
         components.queryItems = [
             URLQueryItem(name: "search_terms", value: query),
-            URLQueryItem(name: "page_size", value: "10"),
+            URLQueryItem(name: "search_simple", value: "1"),
+            URLQueryItem(name: "action", value: "process"),
+            URLQueryItem(name: "json", value: "1"),
+            URLQueryItem(name: "page_size", value: "20"),
+            URLQueryItem(name: "sort_by", value: "unique_scans_n"),
             URLQueryItem(name: "fields", value: "code,product_name,brands,categories,image_small_url,image_url")
         ]
 
@@ -187,6 +180,8 @@ class SearchViewModel: ObservableObject {
         searchQuery = ""
         searchResults = []
         selectedProduct = nil
+        isSearching = false
+        hasSearched = false
     }
 
     deinit {

@@ -13,6 +13,7 @@ import CoreLocation
 struct PriceSubmissionView: View {
     let product: Product
     let stores: [Store]
+    var preselectedStore: Store? = nil
 
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = PriceSubmissionViewModel()
@@ -20,6 +21,13 @@ struct PriceSubmissionView: View {
     @State private var selectedStore: Store?
     @State private var priceInput: String = ""
     @State private var showStorePicker = false
+
+    init(product: Product, stores: [Store], preselectedStore: Store? = nil) {
+        self.product = product
+        self.stores = stores
+        self.preselectedStore = preselectedStore
+        self._selectedStore = State(initialValue: preselectedStore)
+    }
 
     var body: some View {
         NavigationStack {

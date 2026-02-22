@@ -73,30 +73,36 @@ class StoreRelevanceService {
         "general": ["store", "supermarket", "Walmart", "Target", "grocery store"]
     ]
 
-    /// Get appropriate search terms for a product category
+    /// Get appropriate search terms for a product category.
+    /// OFF returns comma-separated categories like "Snacks,Salty snacks,Appetizers,Crackers (Appetizers)".
+    /// We split on commas and test each segment to avoid false partial matches
+    /// (e.g. "Appetizers" containing "pet" would wrongly match the pet store category).
     func getSearchTerms(for productCategory: String?) -> [String] {
-        guard let category = productCategory?.lowercased() else {
+        guard let productCategory = productCategory else {
             print("📋 No category provided, using general search terms")
             return categoryMapping["general"]!
         }
 
-        print("🔍 Looking for search terms for category: '\(category)'")
+        // Split OFF's comma-separated category string into individual tokens
+        let segments = productCategory
+            .components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
 
-        // Try exact match first
-        if let terms = categoryMapping[category] {
-            print("✅ Exact match found: \(terms)")
-            return terms
-        }
+        print("🔍 Checking \(segments.count) category segments: \(segments)")
 
-        // Try partial match (e.g., "beverages and drinks" contains "beverages")
-        for (key, terms) in categoryMapping {
-            if category.contains(key) {
-                print("✅ Partial match found for '\(key)': \(terms)")
-                return terms
+        // Sort mapping keys longest-first so more specific keys win over short ones
+        let sortedKeys = categoryMapping.keys.sorted { $0.count > $1.count }
+
+        for segment in segments {
+            for key in sortedKeys {
+                if segment.contains(key) {
+                    let terms = categoryMapping[key]!
+                    print("✅ Matched segment '\(segment)' → key '\(key)': \(terms)")
+                    return terms
+                }
             }
         }
 
-        // Fallback to general
         print("⚠️ No match found, using general search terms")
         return categoryMapping["general"]!
     }
